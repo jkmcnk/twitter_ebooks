@@ -235,16 +235,6 @@ module Ebooks
       end
     end
 
-    # @return [Twitter::Streaming::Client] underlying streaming client from twitter gem
-    def stream
-      @stream ||= Twitter::Streaming::Client.new do |config|
-        config.consumer_key = @consumer_key
-        config.consumer_secret = @consumer_secret
-        config.access_token = @access_token
-        config.access_token_secret = @access_token_secret
-      end
-    end
-
     # Calculate some meta information about a tweet relevant for replying
     # @param ev [Twitter::Tweet]
     # @return [Ebooks::TweetMeta]
@@ -353,12 +343,28 @@ module Ebooks
       fire(:startup)
     end
 
-    # Start running user event stream
+    # Start polling for various events (instead of using obsoleted stream API)
     def start
-      log "starting tweet stream"
+      log "starting polling"
 
-      stream.user do |ev|
-        receive_event ev
+      last = Time.now
+      while true
+        begin
+          two_days_ago = Time.now - 2
+          since = two_days_ago.strftime("%Y-%m-%d")
+          log "searching for 'to:#{username} since:#{since}'"
+          twitter.search("to:#{username} since:#{since}")
+            .select { |t| t.created_at > last }
+            .sort { |t1,t2| t2.created_at <=> t1.created_at }
+            .each do |tweet|
+            log "got tweet #{tweet} @ #{tweet.created_at}"
+            receive_event tweet
+            last = tweet.created_at
+          end
+        rescue => e
+          log "event polling failed: #{e}"
+        end
+        sleep 60
       end
     end
 
