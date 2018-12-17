@@ -353,7 +353,7 @@ module Ebooks
           two_days_ago = Time.now - 2
           since = two_days_ago.strftime("%Y-%m-%d")
           log "searching for 'to:#{username} since:#{since}'"
-          twitter.search("to:#{username} since:#{since}")
+          twitter.search("to:#{username} since:#{since}", result_type: "recent")
             .select { |t| t.created_at > last }
             .sort { |t1,t2| t2.created_at <=> t1.created_at }
             .each do |tweet|
